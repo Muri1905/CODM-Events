@@ -3,7 +3,7 @@ import { config } from "./config.js";
 import { closeDatabase } from "./database.js";
 import { commands } from "./commands/index.js";
 import { handleButton, handleApproval, handleModal } from "./commands/registration.js";
-
+import { handleOrganizerButton } from "./commands/organizer.js";
 const client=new Client({intents:[GatewayIntentBits.Guilds]});
 const commandMap=new Collection<string,(i:ChatInputCommandInteraction)=>Promise<void>>();
 for(const c of commands)commandMap.set(c.data.name,c.execute);
@@ -13,6 +13,7 @@ client.on("interactionCreate",async i=>{
   if(i.isChatInputCommand()){const c=commandMap.get(i.commandName);if(c)await c(i);return;}
   if(i.isButton()&&i.customId.startsWith("codm:register:"))return handleButton(i);
   if(i.isButton()&&i.customId.startsWith("codm:team:"))return handleApproval(i);
+  if(i.isButton()&&i.customId.startsWith("codm:org:"))return handleOrganizerButton(i);
   if(i.isModalSubmit()&&i.customId.startsWith("codm:register-modal:"))return handleModal(i);
  }catch(e){
   console.error(e);
