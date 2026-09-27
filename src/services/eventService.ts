@@ -14,7 +14,7 @@ export function createEvent(input:{guildId:string;name:string;createdBy:string;t
     db.prepare("INSERT INTO rules_versions (event_id,version,content,created_by) VALUES (?,?,?,?)").run(id,1,"Rules have not been configured yet.",input.createdBy);
     return id;
   });
-  return getEvent(tx);
+  return getEvent(tx());
 }
 export function updateEventStatus(id:number,status:EventStatus):void { db.prepare("UPDATE events SET status=?,updated_at=CURRENT_TIMESTAMP WHERE id=?").run(status,id); }
 export function updateEventChannels(id:number,channels:Record<string,string>):void {
