@@ -6,4 +6,6 @@ import * as match from "./match.js";
 import * as result from "./result.js";
 import * as rules from "./rules.js";
 import * as setup from "./setup.js";
-export const commands=[ping,event,registration,leaderboard,match,result,rules,setup];
+import * as scoring from "./scoring.js";
+import * as organizer from "./organizer.js";
+export const commands=[ping,event,registration,leaderboard,match,result,rules,setup,scoring,organizer];
