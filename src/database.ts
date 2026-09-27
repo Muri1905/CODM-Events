@@ -25,6 +25,8 @@ CREATE TABLE IF NOT EXISTS events (
  teams_channel_id TEXT,
  leaderboard_channel_id TEXT,
  results_channel_id TEXT,
+ organizer_channel_id TEXT,
+ organizer_role_id TEXT,
  category_id TEXT,
  created_by TEXT NOT NULL,
  created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
