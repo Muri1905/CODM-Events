@@ -14,7 +14,8 @@ export const data = new SlashCommandBuilder()
  .addStringOption(o=>o.setName("prize-pool").setDescription("Prize pool"))
  .addStringOption(o=>o.setName("description").setDescription("Description")))
 .addSubcommand(s=>s.setName("setup").setDescription("Create Discord channels.")
- .addIntegerOption(o=>o.setName("event-id").setDescription("Event ID").setMinValue(1).setRequired(true)))
+ .addIntegerOption(o=>o.setName("event-id").setDescription("Event ID").setMinValue(1).setRequired(true))
+ .addRoleOption(o=>o.setName("organizer-role").setDescription("Role allowed to see the private organizer channel")))
 .addSubcommand(s=>s.setName("open").setDescription("Open registration.")
  .addIntegerOption(o=>o.setName("event-id").setDescription("Event ID").setMinValue(1).setRequired(true)))
 .addSubcommand(s=>s.setName("close").setDescription("Lock registration.")
@@ -36,7 +37,7 @@ export async function execute(i:ChatInputCommandInteraction):Promise<void>{
  }
  const id=i.options.getInteger("event-id")??0; const e=getEvent(id);
  if(sub!=="list"&&(!e||e.guild_id!==i.guildId)){await i.reply({content:"❌ Event not found.",ephemeral:true});return;}
- if(sub==="setup"){await setupEventChannels(i.guild,e.id,e.name);audit({guildId:i.guildId,actorId:i.user.id,eventId:e.id,action:"event.channels.created"});await i.reply({content:"✅ Event Discord structure created.",ephemeral:true});return;}
+ if(sub==="setup"){await setupEventChannels(i.guild,e.id,e.name,i.options.getRole('organizer-role')?.id);audit({guildId:i.guildId,actorId:i.user.id,eventId:e.id,action:"event.channels.created"});await i.reply({content:"✅ Event Discord structure created.",ephemeral:true});return;}
  if(sub==="open"||sub==="close"){const status=sub==="open"?"registration":"locked";updateEventStatus(e.id,status);audit({guildId:i.guildId,actorId:i.user.id,eventId:e.id,action:"event.status",details:{status}});await i.reply({content:`✅ Event is now **${EVENT_STATUS_LABELS[status]}**.`,ephemeral:true});return;}
  if(sub==="deadline"){const iso=i.options.getString("iso");if(iso&&Number.isNaN(Date.parse(iso))){await i.reply({content:"❌ Invalid date/time.",ephemeral:true});return;}setDeadline(e.id,iso);await i.reply({content:iso?`✅ Deadline: ${iso}`:"✅ Deadline cleared.",ephemeral:true});return;}
  if(sub==="list"){const rows=getGuildEvents(i.guildId);await i.reply({content:rows.length?rows.map((x:any)=>`**#${x.id}** ${x.name} — ${EVENT_STATUS_LABELS[x.status as keyof typeof EVENT_STATUS_LABELS]}`).join("\n"):"No events yet.",ephemeral:true});return;}
