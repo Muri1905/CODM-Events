@@ -21,6 +21,8 @@ The project is event-first: each tournament can have its own Discord structure, 
 - Screenshot hash + OCR/vision result contracts
 - Audit logging
 - Centralized command deployment and interaction routing
+- Professional welcome message when the bot joins a server
+- Branded CODM Events welcome artwork
 
 ## Commands
 
