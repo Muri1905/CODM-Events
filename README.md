@@ -1,1 +1,61 @@
-# CODM Events\n\nA competitive Call of Duty: Mobile tournament management bot for team registration, event configuration, scoring, results and leaderboards.\n\n## Project vision\n\nCODM Events is being built as a configurable tournament platform rather than a generic Discord utility bot.\n\nPlanned capabilities:\n- 🏆 Event creation and configuration\n- 👥 Team registration and player validation\n- 🔐 Organizer controls and approval workflows\n- 📜 Custom rules per event\n- 🗂️ Event-specific Discord categories and channels\n- 📊 Configurable kill and placement scoring\n- 🎮 Match management\n- 📸 Screenshot-based result processing\n- 🧮 Automatic score calculation\n- 🏆 Overall leaderboards\n- 🖼️ Generated result graphics\n- 📝 Audit logs and result verification\n\n## Current status\n\nPhase 1 foundation is in progress. The repository contains the Discord.js + TypeScript foundation, SQLite schema, event data model, initial ping command, initial event creation command and slash-command deployment.\n\n## Development\n\n1. Copy .env.example to .env.\n2. Add the Discord bot token and application/client ID.\n3. Optionally set DISCORD_GUILD_ID for fast command registration during development.\n4. Run npm install.\n5. Run npm run deploy-commands.\n6. Run npm run dev.\n\nNever commit .env or Discord credentials.\n\n## Roadmap\n\n### Phase 1 — Foundation\n- [x] Repository and TypeScript foundation\n- [x] SQLite schema\n- [x] Event creation\n- [ ] Event configuration panel\n\n### Phase 2 — Registration\n- [ ] Registration panel\n- [ ] Team modal/form\n- [ ] Player validation\n- [ ] Duplicate UID/player protection\n- [ ] Admin approval workflow\n- [ ] Manager DM\n\n### Phase 3 — Event management\n- [ ] Rules editor\n- [ ] Channel/category management\n- [ ] Event templates\n- [ ] Organizer permissions\n\n### Phase 4 — Competition\n- [ ] Scoring configuration\n- [ ] Match management\n- [ ] Result storage\n- [ ] Overall leaderboard\n\n### Phase 5 — Result intelligence\n- [ ] Screenshot upload\n- [ ] OCR/vision extraction\n- [ ] Duplicate screenshot protection\n- [ ] Result preview and organizer confirmation\n- [ ] Automatic result graphics\n\n### Phase 6 — Production\n- [ ] Persistent hosting\n- [ ] Production database strategy\n- [ ] Logging and monitoring\n- [ ] Backups\n- [ ] Security review\n\n## License\n\nNo open-source license has been selected yet.
+# CODM Events
+
+A competitive **Call of Duty: Mobile tournament management platform for Discord**.
+
+The project is event-first: each tournament can have its own Discord structure, registration rules, roster size, scoring, matches, results and leaderboard.
+
+## Foundation now in place
+
+- Event lifecycle: draft → registration → locked → live → finished
+- Event templates: CODM Tournament, Clan War, 1v1, Custom
+- Automatic event category + registration/rules/teams/leaderboard/results channels
+- Team registration panel with roster modal
+- UID duplicate protection
+- Pending → approved/rejected team workflow
+- Manager approval DM
+- Rules versioning
+- Configurable kill/placement/bonus scoring
+- Match creation
+- Verified result storage and automatic score calculation
+- Leaderboard aggregation
+- Screenshot hash + OCR/vision result contracts
+- Audit logging
+- Centralized command deployment and interaction routing
+
+## Commands
+
+`/ping`
+`/event create|setup|open|close|deadline|list|status`
+`/registration panel`
+`/rules show|set`
+`/match create`
+`/result add`
+`/leaderboard`
+`/setup templates`
+
+## Product flow
+
+**Create event → build Discord structure → configure rules/scoring → open registration → validate/approve teams → create matches → process screenshots → verify results → calculate scores → publish leaderboard/results.**
+
+## Next implementation layer
+
+1. Full organizer control panel with buttons/selects/modals.
+2. Rich registration validation and persistent team cards.
+3. Scoring editor UI.
+4. Match result screenshot upload + OCR/vision provider.
+5. Result preview and organizer confirmation.
+6. Automatic result/leaderboard graphics.
+7. Production database/hosting, backups and monitoring.
+
+## Development
+
+Copy `.env.example` to `.env`, set the Discord credentials and test guild ID, then run:
+
+```bash
+npm install
+npm run check
+npm run deploy-commands
+npm run dev
+```
+
+Never commit `.env` or Discord credentials.
