@@ -240,6 +240,10 @@ export function enqueueScreenshotJob(input: {
 
 export function startOcrWorkers(): void {
   if (pollingStarted) return;
+  if (!config.openaiApiKey) {
+    console.warn("OCR workers disabled: OPENAI_API_KEY is not configured.");
+    return;
+  }
   pollingStarted = true;
   void workerLoop();
 }
