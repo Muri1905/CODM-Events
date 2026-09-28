@@ -21,6 +21,8 @@ client.on("messageCreate", async (message) => {
   if (!message.guildId || message.author.bot || message.attachments.size === 0) return;
   const intake = getOpenIntake(message.channelId);
   if (!intake) return;
+  const member = message.member;
+  if (!member?.permissions.has("ManageGuild")) return;
 
   for (const attachment of message.attachments.values()) {
     const contentType = attachment.contentType ?? "";
