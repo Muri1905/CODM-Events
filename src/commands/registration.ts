@@ -1,18 +1,25 @@
 import { ActionRowBuilder, ButtonBuilder, ButtonStyle, EmbedBuilder, ModalBuilder, TextInputBuilder, TextInputStyle, PermissionFlagsBits, SlashCommandBuilder, type ButtonInteraction, type ChatInputCommandInteraction, type ModalSubmitInteraction } from "discord.js";
 import { getEvent } from "../services/eventService.js";
 import { getTextChannel } from "../services/channelService.js";
-import { registerTeam, setTeamStatus, getTeam } from "../services/registrationService.js";
+import { registerTeam, setTeamStatus, getTeam, getTeams, getPlayers } from "../services/registrationService.js";
 import { parseRoster } from "../utils/registrationParser.js";
 import { audit } from "../services/auditService.js";
 
 export const data=new SlashCommandBuilder().setName("registration").setDescription("Manage event registration.")
 .setDefaultMemberPermissions(PermissionFlagsBits.ManageGuild)
-.addSubcommand(s=>s.setName("panel").setDescription("Publish registration panel.").addIntegerOption(o=>o.setName("event-id").setDescription("Event ID").setMinValue(1).setRequired(true)));
+.addSubcommand(s=>s.setName("panel").setDescription("Publish registration panel.").addIntegerOption(o=>o.setName("event-id").setDescription("Event ID").setMinValue(1).setRequired(true)))
+.addSubcommand(s=>s.setName("list").setDescription("List registered teams.").addIntegerOption(o=>o.setName("event-id").setDescription("Event ID").setMinValue(1).setRequired(true)));
 
 export async function execute(i:ChatInputCommandInteraction):Promise<void>{
  if(!i.guild){await i.reply({content:"❌ Server only.",ephemeral:true});return;}
  const e=getEvent(i.options.getInteger("event-id",true));
  if(!e||e.guild_id!==i.guild.id){await i.reply({content:"❌ Event not found.",ephemeral:true});return;}
+ if(i.options.getSubcommand()==="list"){
+  const teams=getTeams(e.id);
+  const text=teams.length?teams.slice(0,25).map(t=>`**#${t.id} ${t.clan_name}** — ${String(t.status).toUpperCase()} — Manager <@${t.manager_discord_id}>`).join("\n"):"No teams registered yet.";
+  await i.reply({content:`👥 **${e.name} — Registered Teams**\n\n${text}`,ephemeral:true});
+  return;
+ }
  const c=await getTextChannel(i.guild,e.registration_channel_id); if(!c){await i.reply({content:"❌ Run /event setup first.",ephemeral:true});return;}
  const deadline=e.registration_deadline?new Date(e.registration_deadline):null;
  const closed=e.status!=="registration";
@@ -62,6 +69,15 @@ export async function handleApproval(i:ButtonInteraction):Promise<void>{
  const status=action==="approve"?"approved":"rejected";
  setTeamStatus(teamId,status);
  audit({guildId:i.guildId!,actorId:i.user.id,eventId:team.event_id,action:`team.${status}`,targetType:"team",targetId:String(teamId)});
- if(status==="approved"){try{const user=await i.client.users.fetch(team.manager_discord_id);await user.send(`🏆 Your team **${team.clan_name}** has been **APPROVED** for event **${getEvent(team.event_id)?.name}**. Please review the event rules before match day.`);}catch{}}
- await i.update({content:`Team #${teamId} — **${team.clan_name}** — **${status.toUpperCase()}**`,components:[]});
+ if(status==="approved"){
+  const event=getEvent(team.event_id);
+  const players=getPlayers(teamId);
+  try{
+    const user=await i.client.users.fetch(team.manager_discord_id);
+    await user.send(`🏆 Your team **${team.clan_name}** has been **APPROVED** for event **${event?.name??"the event"}**.\\n\\nRoster: ${players.map(p=>p.ign).join(", ")}\\n\\nPlease review the official event rules before match day.`);
+  }catch{}
+  const channel=await getTextChannel(i.guild!,event?.teams_channel_id??null);
+  if(channel) await channel.send({embeds:[new EmbedBuilder().setTitle(`✅ ${team.clan_name} — Confirmed`).setDescription(`Manager: <@${team.manager_discord_id}>\\n\\n${players.map(p=>`**P${p.slot}** ${p.ign} · UID ${p.uid}`).join("\n")}`).setFooter({text:"CODM Events • Approved roster"})]});
+}
+ await i.update({content:`Team #${teamId} — **${team.clan_name}** — **${status.toUpperCase()}`,components:[]});
 }
