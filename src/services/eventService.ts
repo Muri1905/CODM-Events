@@ -53,14 +53,12 @@ export function updateEventDetails(id:number,input:{name?:string;teamSize?:numbe
   if(input.teamSize!==undefined && (input.teamSize<1 || input.teamSize>20)) throw new Error("Team size must be between 1 and 20.");
   const name=input.name?.trim();
   if(name!==undefined && !name) throw new Error("Event name cannot be empty.");
-  db.prepare(`UPDATE events SET
-    name=COALESCE(?,name),
-    team_size=COALESCE(?,team_size),
-    prize_pool=CASE WHEN ? IS NULL THEN prize_pool ELSE ? END,
-    description=CASE WHEN ? IS NULL THEN description ELSE ? END,
-    updated_at=CURRENT_TIMESTAMP
-    WHERE id=?`)
-    .run(name??null,input.teamSize??null,input.prizePool??null,input.prizePool??null,input.description??null,input.description??null,id);
+  const nextName = name === undefined ? event.name : name;
+  const nextTeamSize = input.teamSize === undefined ? event.team_size : input.teamSize;
+  const nextPrize = input.prizePool === undefined ? event.prize_pool : input.prizePool;
+  const nextDescription = input.description === undefined ? event.description : input.description;
+  db.prepare(`UPDATE events SET name=?,team_size=?,prize_pool=?,description=?,updated_at=CURRENT_TIMESTAMP WHERE id=?`)
+    .run(nextName,nextTeamSize,nextPrize,nextDescription,id);
 }
 
 export function updateEventChannels(id:number,channels:Record<string,string>):void {
