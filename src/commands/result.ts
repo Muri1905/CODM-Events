@@ -5,6 +5,7 @@ import { getLeaderboard, saveResult, verifyResult, rejectResult } from "../servi
 import { getTextChannel } from "../services/channelService.js";
 import { db } from "../database.js";
 import { audit } from "../services/auditService.js";
+import { startIntake, stopIntake, getIntake } from "../services/resultIntakeService.js";
 
 export const data=new SlashCommandBuilder().setName("result").setDescription("Store and verify match results.").setDefaultMemberPermissions(PermissionFlagsBits.ManageGuild)
 .addSubcommand(s=>s.setName("add").setDescription("Add a pending result for organizer review.")
@@ -17,11 +18,38 @@ export const data=new SlashCommandBuilder().setName("result").setDescription("St
  .addAttachmentOption(o=>o.setName("screenshot").setDescription("Optional result screenshot")))
 .addSubcommand(s=>s.setName("verify").setDescription("Verify a pending result.").addIntegerOption(o=>o.setName("result-id").setDescription("Result ID").setMinValue(1).setRequired(true)))
 .addSubcommand(s=>s.setName("reject").setDescription("Reject a pending result.").addIntegerOption(o=>o.setName("result-id").setDescription("Result ID").setMinValue(1).setRequired(true)))
-.addSubcommand(s=>s.setName("list").setDescription("List event results.").addIntegerOption(o=>o.setName("event-id").setDescription("Event ID").setMinValue(1).setRequired(true)));
+.addSubcommand(s=>s.setName("list").setDescription("List event results.").addIntegerOption(o=>o.setName("event-id").setDescription("Event ID").setMinValue(1).setRequired(true)))
+.addSubcommand(s=>s.setName("intake").setDescription("Manage screenshot intake for a finished match.")
+ .addStringOption(o=>o.setName("action").setDescription("Intake action").setRequired(true).addChoices({name:"start",value:"start"},{name:"stop",value:"stop"},{name:"status",value:"status"}))
+ .addIntegerOption(o=>o.setName("event-id").setDescription("Event ID").setMinValue(1).setRequired(true))
+ .addIntegerOption(o=>o.setName("match-id").setDescription("Match ID (required for start)").setMinValue(1)));
 
 export async function execute(i:ChatInputCommandInteraction):Promise<void>{
  if(!i.guildId||!i.guild){await i.reply({content:"❌ Server only.",ephemeral:true});return;}
  const sub=i.options.getSubcommand();
+ if(sub==="intake"){
+  const eventId=i.options.getInteger("event-id",true);
+  const e=getEvent(eventId);
+  if(!e||e.guild_id!==i.guildId){await i.reply({content:"❌ Event not found.",ephemeral:true});return;}
+  const action=i.options.getString("action",true);
+  try{
+   if(action==="start"){
+    const matchId=i.options.getInteger("match-id");
+    if(!matchId){await i.reply({content:"❌ match-id is required for start.",ephemeral:true});return;}
+    const channelId=e.results_channel_id;
+    if(!channelId){await i.reply({content:"❌ This event has no results channel.",ephemeral:true});return;}
+    startIntake(eventId,matchId,channelId,i.user.id);
+    await i.reply({content:`📥 Screenshot intake **OPEN** for Match #${matchId}. Upload all result screenshots in <#${channelId}>. They will be queued and processed automatically.`,ephemeral:true});
+   } else if(action==="stop"){
+    stopIntake(eventId);
+    await i.reply({content:"🛑 Screenshot intake **CLOSED**.",ephemeral:true});
+   } else {
+    const intake=getIntake(eventId);
+    await i.reply({content:intake?`📥 Intake is **OPEN** for Match #${intake.match_id}.`:"ℹ️ No screenshot intake is currently open.",ephemeral:true});
+   }
+  }catch(error){await i.reply({content:`❌ ${error instanceof Error?error.message:"Could not update screenshot intake."}`,ephemeral:true});}
+  return;
+ }
  if(sub==="add"){
   const eventId=i.options.getInteger("event-id",true); const e=getEvent(eventId);
   if(!e||e.guild_id!==i.guildId){await i.reply({content:"❌ Event not found.",ephemeral:true});return;}
