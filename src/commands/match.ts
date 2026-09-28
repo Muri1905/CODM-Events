@@ -37,6 +37,7 @@ export async function execute(i:ChatInputCommandInteraction):Promise<void>{
  const e=getEvent(match.event_id);
  if(!e||e.guild_id!==i.guildId){await i.reply({content:"❌ Match not found in this server.",ephemeral:true});return;}
  if(sub==="start"){
+  if(e.status!=="locked"&&e.status!=="live"){await i.reply({content:"❌ Lock registration before starting tournament matches.",ephemeral:true});return;}
   if(match.status==="finished"){await i.reply({content:"❌ Match is already finished.",ephemeral:true});return;}
   updateMatchStatus(match.id,"live");
   if(e.status==="locked") updateEventStatus(e.id,"live");
