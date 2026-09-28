@@ -11,7 +11,7 @@ export const data=new SlashCommandBuilder().setName("match").setDescription("Man
 .addSubcommand(s=>s.setName("finish").setDescription("Finish a match.").addIntegerOption(o=>o.setName("match-id").setDescription("Match ID").setMinValue(1).setRequired(true)));
 
 export async function execute(i:ChatInputCommandInteraction):Promise<void>{
- if(!i.guildId){await i.reply({content:"❌ Server only.",ephemeral:true});return;}
+ if(!i.guildId||!i.guild){await i.reply({content:"❌ Server only.",ephemeral:true});return;}
  const sub=i.options.getSubcommand();
  if(sub==="create"){
   const eventId=i.options.getInteger("event-id",true); const e=getEvent(eventId);
