@@ -115,6 +115,45 @@ CREATE INDEX IF NOT EXISTS idx_teams_event ON teams(event_id);
 CREATE INDEX IF NOT EXISTS idx_players_team ON players(team_id);
 CREATE INDEX IF NOT EXISTS idx_matches_event ON matches(event_id);
 CREATE INDEX IF NOT EXISTS idx_results_match ON match_results(match_id);
+CREATE TABLE IF NOT EXISTS ocr_intakes (
+ id INTEGER PRIMARY KEY AUTOINCREMENT,
+ event_id INTEGER NOT NULL,
+ match_id INTEGER NOT NULL,
+ channel_id TEXT NOT NULL,
+ started_by TEXT NOT NULL,
+ status TEXT NOT NULL DEFAULT 'open',
+ created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+ closed_at TEXT,
+ FOREIGN KEY(event_id) REFERENCES events(id) ON DELETE CASCADE,
+ FOREIGN KEY(match_id) REFERENCES matches(id) ON DELETE CASCADE
+);
+CREATE INDEX IF NOT EXISTS idx_ocr_intakes_channel ON ocr_intakes(channel_id,status);
+CREATE TABLE IF NOT EXISTS ocr_jobs (
+ id INTEGER PRIMARY KEY AUTOINCREMENT,
+ event_id INTEGER NOT NULL,
+ match_id INTEGER NOT NULL,
+ guild_id TEXT NOT NULL,
+ channel_id TEXT NOT NULL,
+ message_id TEXT NOT NULL,
+ attachment_id TEXT NOT NULL UNIQUE,
+ source_url TEXT NOT NULL,
+ attachment_name TEXT NOT NULL,
+ content_type TEXT NOT NULL,
+ size INTEGER NOT NULL,
+ screenshot_hash TEXT NOT NULL,
+ status TEXT NOT NULL DEFAULT 'pending',
+ attempts INTEGER NOT NULL DEFAULT 0,
+ result_count INTEGER NOT NULL DEFAULT 0,
+ review_count INTEGER NOT NULL DEFAULT 0,
+ raw_extraction_json TEXT,
+ error TEXT,
+ created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+ updated_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+ FOREIGN KEY(event_id) REFERENCES events(id) ON DELETE CASCADE,
+ FOREIGN KEY(match_id) REFERENCES matches(id) ON DELETE CASCADE
+);
+CREATE INDEX IF NOT EXISTS idx_ocr_jobs_queue ON ocr_jobs(status,created_at);
+CREATE INDEX IF NOT EXISTS idx_ocr_jobs_match_hash ON ocr_jobs(match_id,screenshot_hash);
 `);
 
 export function closeDatabase():void { db.close(); }
