@@ -101,7 +101,11 @@ async function callVision(url: string, mimeType: string): Promise<{ extracted: O
 
   return {
     extracted,
-    raw: payload
+    raw: {
+      responseId: payload.id ?? null,
+      model: payload.model ?? config.ocrModel,
+      usage: payload.usage ?? null
+    }
   };
 }
 
