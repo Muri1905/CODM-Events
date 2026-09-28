@@ -1,6 +1,6 @@
 {
   "name": "codm-events",
-  "version": "0.3.0",
+  "version": "0.4.0",
   "private": true,
   "description": "Competitive Call of Duty: Mobile tournament management platform for Discord.",
   "main": "dist/index.js",
