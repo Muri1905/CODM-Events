@@ -28,6 +28,13 @@ export function saveResult(input:{eventId:number;matchId:number;teamId:number;pl
   if(team.status!=="approved") throw new Error("Only approved teams can receive match results.");
   if(input.placement<1||!Number.isInteger(input.placement)) throw new Error("Placement must be a positive whole number.");
   if(input.kills<0||!Number.isInteger(input.kills)) throw new Error("Kills must be a non-negative whole number.");
+  if(match.status==="pending") throw new Error("Start the match before submitting a result.");
+  const existing=db.prepare("SELECT id FROM match_results WHERE match_id=? AND team_id=?").get(input.matchId,input.teamId) as {id:number}|undefined;
+  if(existing) throw new Error(`This team already has a result for this match (Result #${existing.id}).`);
+  if(input.screenshotHash){
+    const duplicate=db.prepare("SELECT id FROM match_results WHERE screenshot_hash=?").get(input.screenshotHash) as {id:number}|undefined;
+    if(duplicate) throw new Error(`This screenshot has already been submitted (Result #${duplicate.id}).`);
+  }
   const total=calculateScore(input.eventId,input.placement,input.kills,input.bonus??0);
   const r=db.prepare("INSERT INTO match_results (match_id,team_id,placement,kills,bonus_points,total_points,source,status,verified_by,verified_at,screenshot_hash,raw_extraction_json) VALUES (?,?,?,?,?,?,?,?,?,CASE WHEN ? IS NULL THEN NULL ELSE CURRENT_TIMESTAMP END,?,?)")
     .run(input.matchId,input.teamId,input.placement,input.kills,input.bonus??0,total,input.source??"manual",input.status??"pending",input.verifiedBy??null,input.verifiedBy??null,input.screenshotHash??null,input.raw?JSON.stringify(input.raw):null);
