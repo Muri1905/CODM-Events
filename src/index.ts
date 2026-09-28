@@ -5,13 +5,53 @@ import { commands } from "./commands/index.js";
 import { handleButton, handleApproval, handleModal } from "./commands/registration.js";
 import { handleOrganizerButton, handleOrganizerModal } from "./commands/organizer.js";
 import { registerGuildWelcomeHandler } from "./services/welcomeService.js";
+import { startOcrWorkers, enqueueScreenshotJob } from "./services/ocrService.js";
+import { getOpenIntake } from "./services/resultIntakeService.js";
+import { createHash } from "node:crypto";
 
-const client = new Client({ intents: [GatewayIntentBits.Guilds] });
+const client = new Client({ intents: [GatewayIntentBits.Guilds, GatewayIntentBits.GuildMessages] });
 const commandMap = new Collection<string, (i: ChatInputCommandInteraction) => Promise<void>>();
 for (const c of commands) commandMap.set(c.data.name, c.execute);
 
 client.once("clientReady", (c) => console.log("CODM Events logged in as " + c.user.tag));
 registerGuildWelcomeHandler(client);
+startOcrWorkers();
+
+client.on("messageCreate", async (message) => {
+  if (!message.guildId || message.author.bot || message.attachments.size === 0) return;
+  const intake = getOpenIntake(message.channelId);
+  if (!intake) return;
+
+  for (const attachment of message.attachments.values()) {
+    const contentType = attachment.contentType ?? "";
+    if (!contentType.startsWith("image/")) continue;
+    if (attachment.size > 15 * 1024 * 1024) {
+      await message.channel.send(`⚠️ <@${message.author.id}> ${attachment.name} is larger than 15 MB and was skipped.`);
+      continue;
+    }
+
+    const screenshotHash = createHash("sha256").update(attachment.url).digest("hex");
+    const queued = enqueueScreenshotJob({
+      eventId: intake.event_id,
+      matchId: intake.match_id,
+      guildId: message.guildId,
+      channelId: message.channelId,
+      messageId: message.id,
+      attachmentId: attachment.id,
+      sourceUrl: attachment.url,
+      attachmentName: attachment.name,
+      contentType,
+      size: attachment.size,
+      screenshotHash
+    });
+
+    if (!queued.duplicate) {
+      await message.react("⏳").catch(() => undefined);
+    } else {
+      await message.react("♻️").catch(() => undefined);
+    }
+  }
+});
 
 client.on("interactionCreate", async (i) => {
   try {
