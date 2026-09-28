@@ -9,7 +9,7 @@ import { startOcrWorkers, enqueueScreenshotJob } from "./services/ocrService.js"
 import { getOpenIntake } from "./services/resultIntakeService.js";
 import { createHash } from "node:crypto";
 
-const client = new Client({ intents: [GatewayIntentBits.Guilds, GatewayIntentBits.GuildMessages] });
+const client = new Client({ intents: [GatewayIntentBits.Guilds, GatewayIntentBits.GuildMessages, GatewayIntentBits.MessageContent] });
 const commandMap = new Collection<string, (i: ChatInputCommandInteraction) => Promise<void>>();
 for (const c of commands) commandMap.set(c.data.name, c.execute);
 
