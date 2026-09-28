@@ -41,6 +41,8 @@ export async function execute(i:ChatInputCommandInteraction):Promise<void>{
   const row=db.prepare(`SELECT r.id,r.status,r.total_points,r.match_id,r.team_id,r.placement,r.kills,m.match_number,m.event_id,e.guild_id,e.name,e.leaderboard_channel_id FROM match_results r JOIN matches m ON m.id=r.match_id JOIN events e ON e.id=m.event_id WHERE r.id=?`).get(resultId) as any;
   if(!row||row.guild_id!==i.guildId){await i.reply({content:"❌ Result not found.",ephemeral:true});return;}
   if(row.status!=="pending"){await i.reply({content:`❌ Result is already **${String(row.status).toUpperCase()}**.`,ephemeral:true});return;}
+  const matchState=db.prepare("SELECT status FROM matches WHERE id=?").get(row.match_id) as {status:string}|undefined;
+  if(sub==="verify" && matchState?.status!=="finished"){await i.reply({content:"❌ Finish the match before verifying its result.",ephemeral:true});return;}
   if(sub==="verify"){
    verifyResult(resultId,i.user.id);
    audit({guildId:i.guildId,actorId:i.user.id,eventId:row.event_id,action:"result.verified",targetType:"result",targetId:String(resultId)});
