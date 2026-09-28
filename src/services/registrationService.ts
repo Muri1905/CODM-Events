@@ -1,18 +1,25 @@
 import { db } from "../database.js";
 import type { PlayerInput, TeamStatus } from "../types.js";
-export function registerTeam(input:{eventId:number;managerId:string;clanName:string;players:PlayerInput[]}):number {
+
+export function registerTeam(input:{eventId:number;managerId:string;clanName:string;players:PlayerInput[];requiredSize?:number}):number {
   if(!input.players.length) throw new Error("At least one player is required.");
+  if(input.requiredSize!==undefined&&input.players.length!==input.requiredSize) throw new Error(`This event requires exactly ${input.requiredSize} players.`);
+  const clanName=input.clanName.trim();
+  if(clanName.length<2||clanName.length>64) throw new Error("Clan name must be between 2 and 64 characters.");
+  const managerExists=db.prepare("SELECT 1 FROM teams WHERE event_id=? AND manager_discord_id=? AND status IN ('pending','approved') LIMIT 1").get(input.eventId,input.managerId);
+  if(managerExists) throw new Error("You already have a pending or approved team for this event.");
   const duplicate=db.prepare(`SELECT 1 FROM players p JOIN teams t ON t.id=p.team_id WHERE t.event_id=? AND t.status IN ('pending','approved') AND p.uid IN (${input.players.map(()=>"?").join(",")}) LIMIT 1`)
     .get(input.eventId,...input.players.map(p=>p.uid));
   if(duplicate) throw new Error("A player UID is already registered for this event.");
   return db.transaction(()=>{
-    const team=db.prepare("INSERT INTO teams (event_id,manager_discord_id,clan_name,status) VALUES (?,?,?,'pending')").run(input.eventId,input.managerId,input.clanName);
+    const team=db.prepare("INSERT INTO teams (event_id,manager_discord_id,clan_name,status) VALUES (?,?,?,'pending')").run(input.eventId,input.managerId,clanName);
     const id=Number(team.lastInsertRowid);
     const add=db.prepare("INSERT INTO players (team_id,slot,ign,discord_id,uid) VALUES (?,?,?,?,?)");
     for(const p of input.players)add.run(id,p.slot,p.ign,p.discordId,p.uid);
     return id;
   })();
 }
+
 export function setTeamStatus(id:number,status:TeamStatus):void { db.prepare("UPDATE teams SET status=?,updated_at=CURRENT_TIMESTAMP WHERE id=?").run(status,id); }
 export function getTeam(id:number):any { return db.prepare("SELECT * FROM teams WHERE id=?").get(id); }
 export function getTeams(eventId:number):any[] { return db.prepare("SELECT * FROM teams WHERE event_id=? ORDER BY id").all(eventId) as any[]; }
