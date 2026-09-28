@@ -12,7 +12,8 @@ import {
   type ChatInputCommandInteraction,
   type ModalSubmitInteraction,
 } from "discord.js";
-import { getEvent, getEventResults, getEventTeams, getScoring, updateEventStatus, updateScoring } from "../services/eventService.js";
+import { getEvent, getEventResults, getEventTeams, getScoring, updateEventDetails, updateEventStatus, updateScoring } from "../services/eventService.js";
+import { getEventMatches } from "../services/scoringService.js";
 import { getRules, saveRules } from "../services/rulesService.js";
 import { EVENT_STATUS_LABELS } from "../constants.js";
 import { audit } from "../services/auditService.js";
@@ -26,10 +27,12 @@ function mainRows(eventId:number):ActionRowBuilder<ButtonBuilder>[] {
    new ButtonBuilder().setCustomId(`codm:org:status:${eventId}`).setLabel("Event Status").setStyle(ButtonStyle.Secondary),
    new ButtonBuilder().setCustomId(`codm:org:teams:${eventId}`).setLabel("Teams").setStyle(ButtonStyle.Primary),
    new ButtonBuilder().setCustomId(`codm:org:scoring:${eventId}`).setLabel("Scoring").setStyle(ButtonStyle.Primary),
+   new ButtonBuilder().setCustomId(`codm:org:matches:${eventId}`).setLabel("Matches").setStyle(ButtonStyle.Primary),
   ),
   new ActionRowBuilder<ButtonBuilder>().addComponents(
    new ButtonBuilder().setCustomId(`codm:org:rules:${eventId}`).setLabel("Rules").setStyle(ButtonStyle.Primary),
    new ButtonBuilder().setCustomId(`codm:org:results:${eventId}`).setLabel("Results").setStyle(ButtonStyle.Primary),
+   new ButtonBuilder().setCustomId(`codm:org:settings:${eventId}`).setLabel("Settings").setStyle(ButtonStyle.Secondary),
    new ButtonBuilder().setCustomId(`codm:org:refresh:${eventId}`).setLabel("Refresh").setStyle(ButtonStyle.Secondary),
   ),
  ];
@@ -120,6 +123,23 @@ export async function handleOrganizerButton(i:ButtonInteraction):Promise<void>{
   await i.showModal(modal);return;
  }
 
+ if(action==="matches"){
+  const matches=getEventMatches(eventId);
+  const text=matches.length?matches.map(m=>`**#${m.id}** Match ${m.match_number} — **${String(m.status).toUpperCase()}**${m.played_at?` · ${m.played_at}`:""}`).join("\n"):"No matches created yet.";
+  await i.reply({content:`🎮 **Matches — ${e.name}**\\n\\n${text}`,ephemeral:true});return;
+ }
+
+ if(action==="settings"){
+  const modal=new ModalBuilder().setCustomId(`codm:org-modal:settings:${eventId}`).setTitle(`Event Settings — ${e.name}`);
+  modal.addComponents(
+   new ActionRowBuilder<TextInputBuilder>().addComponents(new TextInputBuilder().setCustomId("name").setLabel("Event name").setStyle(TextInputStyle.Short).setRequired(true).setValue(e.name)),
+   new ActionRowBuilder<TextInputBuilder>().addComponents(new TextInputBuilder().setCustomId("team").setLabel("Team size").setStyle(TextInputStyle.Short).setRequired(true).setValue(String(e.team_size))),
+   new ActionRowBuilder<TextInputBuilder>().addComponents(new TextInputBuilder().setCustomId("prize").setLabel("Prize pool").setStyle(TextInputStyle.Short).setRequired(false).setValue(e.prize_pool??"")),
+   new ActionRowBuilder<TextInputBuilder>().addComponents(new TextInputBuilder().setCustomId("description").setLabel("Description").setStyle(TextInputStyle.Paragraph).setRequired(false).setValue((e.description??"").slice(0,4000)))
+  );
+  await i.showModal(modal);return;
+ }
+
  if(action==="results"){
   const results=getEventResults(eventId);
   const text=results.slice(0,20).map(r=>`**Match ${r.match_number}** · ${r.clan_name} — P${r.placement} · ${r.kills} kills · **${r.total_points} pts** · ${r.status}`).join("\n")||"No results recorded yet.";
@@ -150,6 +170,16 @@ export async function handleOrganizerModal(i:ModalSubmitInteraction):Promise<voi
    const version=saveRules(eventId,content,i.user.id);
    audit({guildId:i.guildId,actorId:i.user.id,eventId,action:"rules.updated",details:{version}});
    await i.reply({content:`✅ Rules saved as **v${version}**.`,ephemeral:true});return;
+  }
+  if(action==="settings"){
+   const name=i.fields.getTextInputValue("name");
+   const teamSize=Number(i.fields.getTextInputValue("team"));
+   if(!Number.isInteger(teamSize)||teamSize<1||teamSize>20) throw new Error("Team size must be between 1 and 20.");
+   const prize=i.fields.getTextInputValue("prize").trim();
+   const description=i.fields.getTextInputValue("description").trim();
+   updateEventDetails(eventId,{name,teamSize,prizePool:prize||null,description:description||null});
+   audit({guildId:i.guildId,actorId:i.user.id,eventId,action:"event.updated",details:{source:"organizer-panel"}});
+   await i.reply({content:"✅ Event settings updated.",ephemeral:true});return;
   }
   await i.reply({content:"❌ Unknown organizer editor.",ephemeral:true});
  }catch(error){await i.reply({content:`❌ ${error instanceof Error?error.message:"Update failed."}`,ephemeral:true});}
