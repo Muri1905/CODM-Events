@@ -39,7 +39,7 @@ export async function execute(i:ChatInputCommandInteraction):Promise<void>{
  if(sub==="start"){
   if(match.status==="finished"){await i.reply({content:"❌ Match is already finished.",ephemeral:true});return;}
   updateMatchStatus(match.id,"live");
-  if(e.status==="locked"||e.status==="registration") updateEventStatus(e.id,"live");
+  if(e.status==="locked") updateEventStatus(e.id,"live");
   audit({guildId:i.guildId,actorId:i.user.id,eventId:e.id,action:"match.started",targetType:"match",targetId:String(match.id)});
   await i.reply({content:`🟢 Match **#${match.match_number}** is now LIVE.`,ephemeral:true});return;
  }
