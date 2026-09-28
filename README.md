@@ -39,15 +39,24 @@ The project is event-first: each tournament can have its own Discord structure, 
 
 **Create event → build Discord structure → configure rules/scoring → open registration → validate/approve teams → create matches → process screenshots → verify results → calculate scores → publish leaderboard/results.**
 
-## Next implementation layer
+## Implemented test layer
 
-1. Full organizer control panel with buttons/selects/modals.
-2. Rich registration validation and persistent team cards.
-3. Scoring editor UI.
-4. Match result screenshot upload + OCR/vision provider.
-5. Result preview and organizer confirmation.
-6. Automatic result/leaderboard graphics.
-7. Production database/hosting, backups and monitoring.
+- Organizer control panel with status, teams, scoring, rules, matches, results, settings and refresh controls.
+- Event editing with lifecycle validation and registration deadline enforcement.
+- Automatic event category/channel creation plus initial rules and registration panels.
+- Persistent registration button with roster validation, UID protection, manager protection and approval workflow.
+- Approved roster publication and manager DM.
+- Configurable scoring editor and versioned rules publishing.
+- Match lifecycle: create → live → finished.
+- Result workflow: pending → verified/rejected, screenshot attachment tracking and duplicate protection.
+- Verified leaderboard aggregation and publication.
+- Audit trail for event, team, match, scoring, rules and result actions.
+
+## Remaining external integration
+
+1. OCR/vision provider for automatic extraction of placement/kills/team from uploaded screenshots.
+2. Automatic result/leaderboard graphic rendering.
+3. Production database/hosting, backups and monitoring.
 
 ## Development
 
