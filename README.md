@@ -70,3 +70,28 @@ npm run dev
 ```
 
 Never commit `.env` or Discord credentials.
+
+
+## High-volume screenshot processing
+
+Result screenshots are processed through a persistent OCR/vision queue.
+
+1. Finish the match.
+2. Run `/result intake action:start event-id:<ID> match-id:<ID>`.
+3. Upload screenshots in the event's results channel. Multiple screenshots can be sent in one Discord message.
+4. The bot queues them automatically, rejects duplicate attachments, and processes them with controlled concurrency.
+5. High-confidence extractions are stored as **pending** results. Low-confidence or inconsistent extractions are flagged for review.
+6. Only verified results affect the leaderboard.
+7. Stop intake with `/result intake action:stop event-id:<ID>`.
+
+### OCR configuration
+
+Set these environment variables:
+
+- `OPENAI_API_KEY` — API key for the vision/OCR provider.
+- `OCR_MODEL` — defaults to `gpt-5.6-luna`.
+- `OCR_CONCURRENCY` — simultaneous processing jobs; defaults to 3.
+- `OCR_MAX_RETRIES` — retry count for failed jobs; defaults to 3.
+- `OCR_CONFIDENCE_THRESHOLD` — automatic acceptance threshold; defaults to 0.90.
+
+The queue is persisted in SQLite, so a burst of screenshots does not create one API request per Discord event loop tick and processing is deliberately concurrency-limited.
