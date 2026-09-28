@@ -1,7 +1,8 @@
 import { createHash } from "node:crypto";
-import { ActionRowBuilder, ButtonBuilder, ButtonStyle, PermissionFlagsBits, SlashCommandBuilder, type ChatInputCommandInteraction } from "discord.js";
+import { EmbedBuilder, PermissionFlagsBits, SlashCommandBuilder, type ChatInputCommandInteraction } from "discord.js";
 import { getEvent } from "../services/eventService.js";
-import { getMatch, saveResult, verifyResult, rejectResult } from "../services/scoringService.js";
+import { getLeaderboard, saveResult, verifyResult, rejectResult } from "../services/scoringService.js";
+import { getTextChannel } from "../services/channelService.js";
 import { db } from "../database.js";
 import { audit } from "../services/auditService.js";
 
@@ -19,7 +20,7 @@ export const data=new SlashCommandBuilder().setName("result").setDescription("St
 .addSubcommand(s=>s.setName("list").setDescription("List event results.").addIntegerOption(o=>o.setName("event-id").setDescription("Event ID").setMinValue(1).setRequired(true)));
 
 export async function execute(i:ChatInputCommandInteraction):Promise<void>{
- if(!i.guildId){await i.reply({content:"❌ Server only.",ephemeral:true});return;}
+ if(!i.guildId||!i.guild){await i.reply({content:"❌ Server only.",ephemeral:true});return;}
  const sub=i.options.getSubcommand();
  if(sub==="add"){
   const eventId=i.options.getInteger("event-id",true); const e=getEvent(eventId);
@@ -29,17 +30,28 @@ export async function execute(i:ChatInputCommandInteraction):Promise<void>{
    const screenshotHash=attachment?createHash("sha256").update(attachment.url).digest("hex"):null;
    const id=saveResult({eventId:e.id,matchId,teamId:i.options.getInteger("team-id",true),placement:i.options.getInteger("placement",true),kills:i.options.getInteger("kills",true),bonus:i.options.getInteger("bonus")??0,source:attachment?"manual+screenshot":"manual",status:"pending",screenshotHash,raw:attachment?{url:attachment.url,name:attachment.name,size:attachment.size}:undefined});
    audit({guildId:i.guildId,actorId:i.user.id,eventId:e.id,action:"result.created",targetType:"result",targetId:String(id)});
+   const resultsChannel=await getTextChannel(i.guild,e.results_channel_id);
+   if(resultsChannel) await resultsChannel.send({content:`📥 **Result #${id} pending review** · Match ${matchId} · Team #${i.options.getInteger("team-id",true)} · P${i.options.getInteger("placement",true)} · ${i.options.getInteger("kills",true)} kills`});
    await i.reply({content:`📥 Result **#${id}** saved as **PENDING REVIEW**. Use **/result verify result-id:${id}** to publish it to the leaderboard, or reject it.`,ephemeral:true});
   }catch(error){await i.reply({content:`❌ ${error instanceof Error?error.message:"Could not save result."}`,ephemeral:true});}
   return;
  }
  if(sub==="verify"||sub==="reject"){
   const resultId=i.options.getInteger("result-id",true);
-  const row=db.prepare(`SELECT r.id,r.status,m.event_id,e.guild_id FROM match_results r JOIN matches m ON m.id=r.match_id JOIN events e ON e.id=m.event_id WHERE r.id=?`).get(resultId) as any;
+  const row=db.prepare(`SELECT r.id,r.status,r.total_points,r.match_id,r.team_id,r.placement,r.kills,m.match_number,m.event_id,e.guild_id,e.name,e.leaderboard_channel_id FROM match_results r JOIN matches m ON m.id=r.match_id JOIN events e ON e.id=m.event_id WHERE r.id=?`).get(resultId) as any;
   if(!row||row.guild_id!==i.guildId){await i.reply({content:"❌ Result not found.",ephemeral:true});return;}
   if(row.status!=="pending"){await i.reply({content:`❌ Result is already **${String(row.status).toUpperCase()}**.`,ephemeral:true});return;}
-  if(sub==="verify"){verifyResult(resultId,i.user.id);audit({guildId:i.guildId,actorId:i.user.id,eventId:row.event_id,action:"result.verified",targetType:"result",targetId:String(resultId)});await i.reply({content:`✅ Result **#${resultId}** verified and included in the leaderboard.`,ephemeral:true});}
-  else {rejectResult(resultId);audit({guildId:i.guildId,actorId:i.user.id,eventId:row.event_id,action:"result.rejected",targetType:"result",targetId:String(resultId)});await i.reply({content:`🗑️ Result **#${resultId}** rejected.`,ephemeral:true});}
+  if(sub==="verify"){
+   verifyResult(resultId,i.user.id);
+   audit({guildId:i.guildId,actorId:i.user.id,eventId:row.event_id,action:"result.verified",targetType:"result",targetId:String(resultId)});
+   const channel=await getTextChannel(i.guild,row.leaderboard_channel_id);
+   if(channel){const leaderboard=getLeaderboard(row.event_id);const text=leaderboard.slice(0,25).map((r:any,n:number)=>`**${n+1}. ${r.clanName}** — ${r.totalPoints} pts · ${r.kills} kills · ${r.matches} matches`).join("\n")||"No verified results yet.";await channel.send({embeds:[new EmbedBuilder().setTitle(`🏆 ${row.name} — Leaderboard Updated`).setDescription(text)]});}
+   await i.reply({content:`✅ Result **#${resultId}** verified and published to the leaderboard.`,ephemeral:true});
+  } else {
+   rejectResult(resultId);
+   audit({guildId:i.guildId,actorId:i.user.id,eventId:row.event_id,action:"result.rejected",targetType:"result",targetId:String(resultId)});
+   await i.reply({content:`🗑️ Result **#${resultId}** rejected.`,ephemeral:true});
+  }
   return;
  }
  const eventId=i.options.getInteger("event-id",true); const e=getEvent(eventId);
