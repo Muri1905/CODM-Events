@@ -5,5 +5,6 @@ export function screenshotAlreadyProcessed(hash:string):boolean { return Boolean
 export interface ExtractedResult { clanName:string; placement:number; kills:number; confidence?:number; }
 export interface ResultPreview { matchId:number; source:"ocr"|"vision"; extracted:ExtractedResult[]; }
 export function findTeamByClan(eventId:number,clanName:string):number|undefined {
-  const r:any=db.prepare("SELECT id FROM teams WHERE event_id=? AND clan_name=? AND status='approved' LIMIT 1").get(eventId,clanName); return r?.id;
+  const r:any=db.prepare("SELECT id FROM teams WHERE event_id=? AND status='approved' AND LOWER(TRIM(clan_name))=LOWER(TRIM(?)) LIMIT 1").get(eventId,clanName);
+  return r?.id;
 }
