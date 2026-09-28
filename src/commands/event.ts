@@ -1,4 +1,4 @@
-import { EmbedBuilder, PermissionFlagsBits, SlashCommandBuilder, type ChatInputCommandInteraction } from "discord.js";
+import { ActionRowBuilder, ButtonBuilder, ButtonStyle, EmbedBuilder, PermissionFlagsBits, SlashCommandBuilder, type ChatInputCommandInteraction } from "discord.js";
 import { EVENT_STATUS_LABELS, EVENT_TEMPLATES } from "../constants.js";
 import { audit } from "../services/auditService.js";
 import { createEvent, getEvent, getGuildEvents, setDeadline, updateEventDetails, updateEventStatus } from "../services/eventService.js";
@@ -82,6 +82,24 @@ export async function execute(i:ChatInputCommandInteraction):Promise<void>{
    if(rulesChannel){
     const rules=getRules(e.id);
     await rulesChannel.send({embeds:[new EmbedBuilder().setTitle(`📜 ${e.name} — Rules`).setDescription(rules.content).setFooter({text:`Rules v${rules.version} • CODM Events`})]});
+   }
+   const registrationChannel=await getTextChannel(i.guild,updated.registration_channel_id);
+   if(registrationChannel){
+    const registrationEmbed=new EmbedBuilder()
+      .setTitle(`📝 ${e.name} — Team Registration`)
+      .setDescription(`Build your roster and register your team. Required players: **${e.team_size}**.`)
+      .addFields(
+        {name:"Prize Pool",value:e.prize_pool??"Not set",inline:true},
+        {name:"Registration",value:"OPEN when the organizer opens the event",inline:true},
+        {name:"Rules",value:`See <#${updated.rules_channel_id}> before registering.`,inline:true}
+      )
+      .setFooter({text:"CODM Events • Team Registration"});
+    await registrationChannel.send({
+      embeds:[registrationEmbed],
+      components:[new ActionRowBuilder<ButtonBuilder>().addComponents(
+        new ButtonBuilder().setCustomId(`codm:register:${e.id}`).setLabel("Register Team").setStyle(ButtonStyle.Primary)
+      )]
+    });
    }
    audit({guildId:i.guildId,actorId:i.user.id,eventId:e.id,action:"event.channels.created"});
    await i.reply({content:"✅ Event Discord structure created and the rules channel initialized.",ephemeral:true});return;
