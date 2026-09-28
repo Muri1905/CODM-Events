@@ -1,5 +1,7 @@
 import { PermissionFlagsBits, SlashCommandBuilder, type ChatInputCommandInteraction } from "discord.js";
-import { getEvent } from "../services/eventService.js";
+import { getEvent, updateEventStatus } from "../services/eventService.js";
+import { audit } from "../services/auditService.js";
+import { getTextChannel } from "../services/channelService.js";
 import { createMatch, getEventMatches, getMatch, updateMatchStatus } from "../services/scoringService.js";
 
 export const data=new SlashCommandBuilder().setName("match").setDescription("Manage matches.").setDefaultMemberPermissions(PermissionFlagsBits.ManageGuild)
@@ -14,7 +16,13 @@ export async function execute(i:ChatInputCommandInteraction):Promise<void>{
  if(sub==="create"){
   const eventId=i.options.getInteger("event-id",true); const e=getEvent(eventId);
   if(!e||e.guild_id!==i.guildId){await i.reply({content:"❌ Event not found.",ephemeral:true});return;}
-  try{const id=createMatch(e.id,i.options.getInteger("number",true));await i.reply({content:`🎮 Match created. ID: **${id}**`,ephemeral:true});}
+  try{
+  const id=createMatch(e.id,i.options.getInteger("number",true));
+  audit({guildId:i.guildId,actorId:i.user.id,eventId:e.id,action:"match.created",targetType:"match",targetId:String(id)});
+  const channel=await getTextChannel(i.guild,e.results_channel_id);
+  if(channel) await channel.send({content:`🎮 **Match ${i.options.getInteger("number",true)}** created for **${e.name}**. Match ID: **#${id}**`});
+  await i.reply({content:`🎮 Match created. ID: **${id}**`,ephemeral:true});
+ }
   catch(error){await i.reply({content:`❌ ${error instanceof Error?error.message:"Could not create match."}`,ephemeral:true});}
   return;
  }
@@ -30,7 +38,12 @@ export async function execute(i:ChatInputCommandInteraction):Promise<void>{
  if(!e||e.guild_id!==i.guildId){await i.reply({content:"❌ Match not found in this server.",ephemeral:true});return;}
  if(sub==="start"){
   if(match.status==="finished"){await i.reply({content:"❌ Match is already finished.",ephemeral:true});return;}
-  updateMatchStatus(match.id,"live"); await i.reply({content:`🟢 Match **#${match.match_number}** is now LIVE.`,ephemeral:true});return;
+  updateMatchStatus(match.id,"live");
+  if(e.status==="locked"||e.status==="registration") updateEventStatus(e.id,"live");
+  audit({guildId:i.guildId,actorId:i.user.id,eventId:e.id,action:"match.started",targetType:"match",targetId:String(match.id)});
+  await i.reply({content:`🟢 Match **#${match.match_number}** is now LIVE.`,ephemeral:true});return;
  }
- updateMatchStatus(match.id,"finished"); await i.reply({content:`🏁 Match **#${match.match_number}** is now FINISHED.`,ephemeral:true});
+ updateMatchStatus(match.id,"finished");
+ audit({guildId:i.guildId,actorId:i.user.id,eventId:e.id,action:"match.finished",targetType:"match",targetId:String(match.id)});
+ await i.reply({content:`🏁 Match **#${match.match_number}** is now FINISHED. You can now submit and verify results.`,ephemeral:true});
 }
